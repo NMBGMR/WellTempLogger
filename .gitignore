@@ -1,0 +1,9 @@
+*.hg
+*.idea
+*.pyc
+*.pyo
+*.hidden
+*.project
+*.pydevproject
+.DS_Store
+data/*
