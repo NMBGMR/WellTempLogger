@@ -19,7 +19,7 @@ import os
 from chaco.chaco_plot_editor import ChacoPlotItem
 from numpy import hstack
 from pyface.timer.do_later import do_after, do_later
-from traits.api import HasTraits, Button, Float, File, Bool, Str, Array
+from traits.api import HasTraits, Button, Float, File, Bool, Str, Array, Int, Instance
 from traitsui.api import View, UItem, HGroup, VGroup, Item, Readonly
 
 from src.device import SignalDevice, MeasurementDevice
@@ -34,25 +34,24 @@ class MainWindow(HasTraits):
     last_measurement = Str
     output_path = File
     post_measurement_delay = Float(0.05, auto_set=False, enter_set=True)
-    waitfor_delay = Float(0.01, auto_set=False, enter_set=True)
+
+    npoints = Int
     _scan_thread = None
 
     _alive = Bool
     measurement_device = None
-    signal_device = None
+    signal_device = Instance(SignalDevice, ())
 
     xs = Array
     ys = Array
     ts = Array
     # private
-
-    def _waitfor_delay_changed(self):
-        if self.signal_device:
-            self.signal_device.period = self.waitfor_delay
+    _initialized = False
 
     def _start_button_fired(self):
         if self._initialize_output_file():
-            if self.signal_device or self._initialize_devices():
+            if self._initialize_devices():
+                self.measurement_device.reset()
                 self._start_scan()
 
     def _stop_button_fired(self):
@@ -77,16 +76,15 @@ class MainWindow(HasTraits):
         return True
 
     def _initialize_devices(self):
-        self.signal_device = SignalDevice()
-        self.signal_device.period = self.waitfor_delay
-        self.measurement_device = MeasurementDevice()
+        if not self._initialized:
+            self.measurement_device = MeasurementDevice()
 
-        if self.signal_device.open():
-
-            if self.measurement_device.open():
+            if self.signal_device.open():
+                if self.measurement_device.open():
+                    return True
+            if DEBUG:
                 return True
-
-        if DEBUG:
+        else:
             return True
 
     def _scan(self):
@@ -132,7 +130,7 @@ tgrp = HGroup(UItem('start_button', enabled_when='not _alive'),
               UItem('stop_button', enabled_when='_alive'),
               UItem('reset_button', enabled_when='not _alive'),
               Readonly('last_measurement'))
-cgrp = HGroup(Item('post_measurement_delay'), Item('waitfor_delay'))
+cgrp = HGroup(Item('post_measurement_delay'), Item('object.signal_device.period'))
 pgrp = VGroup(ChacoPlotItem('xs', 'ys',
                             resizable=True,
                             orientation='v',

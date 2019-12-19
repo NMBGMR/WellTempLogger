@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ===============================================================================
+from traits.api import HasTraits, Float
 import random
 from datetime import datetime
 import platform
@@ -21,7 +22,7 @@ import pyvisa
 import serial
 
 
-class Device:
+class Device(HasTraits):
     _handle = None
 
     def open(self):
@@ -29,7 +30,7 @@ class Device:
 
 
 class SignalDevice(Device):
-    period = 0.01
+    period = Float(0.01, auto_set=False, enter_set=True)
 
     def __init__(self):
         if platform.system == 'Windows':
