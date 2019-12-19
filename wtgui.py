@@ -15,6 +15,7 @@
 # ===============================================================================
 from datetime import datetime
 import os
+import yaml
 
 from chaco.chaco_plot_editor import ChacoPlotItem
 from numpy import hstack
@@ -47,6 +48,32 @@ class MainWindow(HasTraits):
     ts = Array
     # private
     _initialized = False
+
+    persistence_path = None
+
+    def load(self):
+        self.persistence_path ='config.yaml'
+        p = self.persistence_path
+        if os.path.isfile(p):
+            with open(p, 'r') as rfile:
+                yobj = yaml.load(rfile)
+                for obj, ga in ((self, 'main'), (self.signal_device, 'signal_device')):
+                    g = yobj.get(ga)
+                    if g:
+                        for k, v in g.items():
+                            setattr(obj, k, v)
+
+    def _get_dump_obj(self):
+        def make_dump(obj, attrs):
+            return {k: getattr(obj, k) for k in attrs}
+
+        ctx = {'main': make_dump(self, ('post_measurement_delay',)),
+               'signal_device': make_dump(self.signal_device, ('period',))}
+        return ctx
+
+    def dump(self):
+        with open(self.persistence_path, 'w') as wfile:
+            yaml.dump(self._get_dump_obj(), wfile, default_flow_style=False)
 
     def _start_button_fired(self):
         if self._initialize_output_file():
@@ -91,7 +118,7 @@ class MainWindow(HasTraits):
 
         self._iteration()
         if self._alive:
-            do_after(self.post_measurement_delay*1000, self._scan)
+            do_after(self.post_measurement_delay * 1000, self._scan)
 
     def _iteration(self):
         if self.signal_device.waitfor() or DEBUG:
@@ -109,15 +136,18 @@ class MainWindow(HasTraits):
     def _report_measurement(self, row):
         fmt = '{:<10s}{:<10s}{:<10s}{:<30s}{:<20s}{:<10s}'
 
-        c = '{:09n}'.format(row[0])
+        c = '{:05n}'.format(row[0])
         t = '{:0.1f}'.format(row[1])
         r = '{:0.1f}'.format(row[2])
         dt = '{}'.format(row[3])
-        v = '{}'.format(row[4])
-        temp = '{}'.format(row[5])
+        v = '{:0.6f}'.format(row[4])
+        temp = '{:0.3f}'.format(row[5])
 
         msg = fmt.format(c, t, r, dt, v, temp)
         print(msg)
+
+        header = 'Counter  Time      Rate    TimeStamp                                     Raw                     Temp'
+        msg = '{}\n{}'.format(header, msg)
         self.last_measurement = msg
 
     def _write_measurement(self, row):
@@ -126,10 +156,13 @@ class MainWindow(HasTraits):
             wfile.write('\n'.format(line))
 
 
-tgrp = HGroup(UItem('start_button', enabled_when='not _alive'),
+agrp = HGroup(UItem('start_button', enabled_when='not _alive'),
               UItem('stop_button', enabled_when='_alive'),
               UItem('reset_button', enabled_when='not _alive'),
-              Readonly('last_measurement'))
+              )
+
+bgrp = HGroup(Readonly('last_measurement', show_label=False), label='Last Measurement', show_border=True)
+fgrp = HGroup(Readonly('output_path', show_label=False), label='Output File', show_border=True)
 cgrp = HGroup(Item('post_measurement_delay'), Item('object.signal_device.period'))
 pgrp = VGroup(ChacoPlotItem('xs', 'ys',
                             resizable=True,
@@ -162,10 +195,12 @@ pgrp = VGroup(ChacoPlotItem('xs', 'ys',
                             title='',
                             show_label=False))
 
-view = View(VGroup(tgrp, cgrp, pgrp), resizable=True,
+view = View(VGroup(agrp, bgrp, fgrp, cgrp, pgrp), resizable=True,
             width=900)
 
 if __name__ == '__main__':
     m = MainWindow()
+    m.load()
     m.configure_traits(view=view)
+    m.dump()
 # ============= EOF =============================================
