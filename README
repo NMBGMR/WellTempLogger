@@ -1,0 +1,23 @@
+README
+======================
+
+
+commandline commands are indicated as follows
+
+`cd WellTempLogger`
+
+DO NOT INCLUDE the `` when typing the commands
+Hit enter after typing a command to execute
+
+Notes about the command are indicated with #
+DO NOT INCLUDE the Notes when typing the commands
+
+1. open a Terminal.app window
+2. `cd` # change directory to the Home folder
+3. `cd WellTempLogger` # change directory to the WellTempLogger folder
+4. `conda activate welltemplogger` # activate the correct python environment
+5. `python wt.py`  # launch the WellTempLogger application
+6. Stop the application by using Control+C
+
+Everytime the application successfully launches a new data file is create in the ~/WellTempLogger/data
+

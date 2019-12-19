@@ -25,35 +25,38 @@ Well Temp Logger
 by Jake Ross (2019)
  
 """
-
+DEBUG=False
 DEVICE_ID = 'GPIB0::22::INSTR'
-SIGNAL_DEV_ADDR = 'COM1'
-
-
-class MockDevice:
-    def query(self, cmd):
-        return -1
+SIGNAL_DEV_ADDR = '/dev/tty.UC-232AC'
+SIGNAL_DELAY = 0.05
+POST_MEASUREMENT_DELAY=0.05
+NPOINTS=10
 
 
 class SignalDevice:
-    _handle = None
-    cts = True
+    _handle=None
     def open(self):
         try:
             self._handle = serial.Serial(SIGNAL_DEV_ADDR)
             return True
         except serial.SerialException:
-            return True
+            if DEBUG:
+                return True
 
     def active(self):
         if self._handle:
-            return self._handle.cts
-
+            return self._handle.dsr
+        else:
+            if DEBUG:
+                return True
+        
     def report_pin_states(self):
         if self._handle:
-            for a in ('cts', 'dsr', 'ri', 'cd'):
-                print('{:<3s}={}'.format(a, getattr(self._handle, a)))
-
+            args = ('cts', 'dsr', 'ri', 'cd')
+            l = ['{:<3s}={}'.format(a, int(getattr(self._handle, a))) for a in args]
+            print(' '.join(l))
+                                    
+            
 
 def welcome():
     print(WELCOME)
@@ -67,6 +70,8 @@ def open_device():
         print('Available Resources={}'.format(res))
     else:
         inst = rm.open_resource(DEVICE_ID)
+        inst.write('CONF:FRES 1MOHM, 0.000001MOHM')
+        inst.write('SENSE:FRES:NPLC {}'.format(NPOINTS))
         return inst
 
 
@@ -99,29 +104,39 @@ def start_logging(dev, signal_device):
             write_row(p, row)
             report_row(row)
             counter += 1
-            time.sleep(1)
-
+            time.sleep(POST_MEASUREMENT_DELAY)
 
 def wait_for_signal(signal_device):
+    if DEBUG:
+        print('waiting for signal')
     st = time.time()
     timeout = 100
-
+    was_deactive=False
     while 1:
         if time.time() - st > timeout:
             break
-
-        signal_device.report_pin_states()
-
-        if signal_device.cts:
+        
+        if DEBUG:
+            signal_device.report_pin_states()
+            
+        if not signal_device.active():
+            was_deactive=True
+            
+        if was_deactive and signal_device.active():
             return True
 
-        time.sleep(0.01)
+        time.sleep(SIGNAL_DELAY)
 
 
 def read_device(dev, verbose=False):
-    ret = dev.query('MEAS:VOLT:DC?')
-    if verbose:
-        print('query={}'.format(ret))
+    ret = -1
+    if dev:
+        
+        ret=dev.query('READ?')
+        
+        #ret = dev.query('MEAS:VOLT:DC?')
+        if verbose:
+            print('query={}'.format(ret))
     return float(ret)
 
 
@@ -139,7 +154,7 @@ def assemble_row(counter, value, starttime):
 def report_row(row):
     c = '{:09n}'.format(row[0])
     t = '{:0.1f}'.format(row[1])
-    r = '{:0.1f}'.format(row[2])
+    r = '{:0.2f}'.format(row[2])
     dt = '{}'.format(row[3])
     v = '{}'.format(row[4])
     temp = '{}'.format(convert_to_temp(row[4]))
@@ -157,9 +172,7 @@ def write_row(p, row):
 
 
 def convert_to_temp(v):
-    a = 10
-    b = 100
-    return v*a+b
+    return v
 
 
 def warning(msg):
@@ -170,11 +183,15 @@ def main():
     welcome()
     dev = open_device()
     if dev:
+        print('opened device')
         sd = open_signal_device()
         if sd:
+            print('opened signal device')
             start_logging(dev, sd)
         else:
             warning('Failed to connect to Signal Device')
+    else:
+        warning('Failed connecting to Multimeter')
 
 
 if __name__ == '__main__':
