@@ -16,12 +16,13 @@
 from datetime import datetime
 import os
 import yaml
+from numpy import array
 
 from chaco.chaco_plot_editor import ChacoPlotItem
 from numpy import hstack
 from pyface.timer.do_later import do_after, do_later
 from traits.api import HasTraits, Button, Float, File, Bool, Str, Array, Int, Instance
-from traitsui.api import View, UItem, HGroup, VGroup, Item, Readonly
+from traitsui.api import View, UItem, HGroup, VGroup, Item, Readonly, Tabbed
 
 from src.device import SignalDevice, MeasurementDevice
 
@@ -52,7 +53,7 @@ class MainWindow(HasTraits):
     persistence_path = None
 
     def load(self):
-        self.persistence_path ='config.yaml'
+        self.persistence_path = 'config.yaml'
         p = self.persistence_path
         if os.path.isfile(p):
             with open(p, 'r') as rfile:
@@ -78,13 +79,20 @@ class MainWindow(HasTraits):
     def _start_button_fired(self):
         if self._initialize_output_file():
             if self._initialize_devices():
-                self.measurement_device.reset()
+                self.measurement_device.init()
                 self._start_scan()
 
     def _stop_button_fired(self):
         self._alive = False
 
     def _reset_button_fired(self):
+        def clear():
+            self.xs = array([])
+            self.ys = array([])
+            self.ts = array([])
+
+        do_later(clear)
+
         if self.measurement_device:
             self.measurement_device.reset()
 
@@ -104,6 +112,7 @@ class MainWindow(HasTraits):
 
     def _initialize_devices(self):
         if not self._initialized:
+            self._initialized = True
             self.measurement_device = MeasurementDevice()
 
             if self.signal_device.open():
@@ -164,39 +173,40 @@ agrp = HGroup(UItem('start_button', enabled_when='not _alive'),
 bgrp = HGroup(Readonly('last_measurement', show_label=False), label='Last Measurement', show_border=True)
 fgrp = HGroup(Readonly('output_path', show_label=False), label='Output File', show_border=True)
 cgrp = HGroup(Item('post_measurement_delay'), Item('object.signal_device.period'))
-pgrp = VGroup(ChacoPlotItem('xs', 'ys',
-                            resizable=True,
-                            orientation='v',
-                            x_label='Depth',
-                            y_label='Signal(ohm)',
-                            color='blue',
-                            bgcolor='white',
-                            border_visible=True,
-                            border_width=1,
-                            padding_bg_color='lightgray',
-                            width=800,
-                            height=380,
-                            marker_size=2,
-                            title='',
-                            show_label=False),
-              ChacoPlotItem('xs', 'ts',
-                            resizable=True,
-                            orientation='v',
-                            x_label='Depth',
-                            y_label='Temp C',
-                            color='blue',
-                            bgcolor='white',
-                            border_visible=True,
-                            border_width=1,
-                            padding_bg_color='lightgray',
-                            width=800,
-                            height=380,
-                            marker_size=2,
-                            title='',
-                            show_label=False))
+pgrp = Tabbed(VGroup(ChacoPlotItem('xs', 'ys',
+                                   resizable=True,
+                                   orientation='v',
+                                   x_label='Depth',
+                                   y_label='Signal(ohm)',
+                                   color='blue',
+                                   bgcolor='white',
+                                   border_visible=True,
+                                   border_width=1,
+                                   padding_bg_color='lightgray',
+                                   width=800,
+                                   height=380,
+                                   marker_size=2,
+                                   title='',
+                                   show_label=False), label='Raw'),
+              VGroup(ChacoPlotItem('xs', 'ts',
+                                   resizable=True,
+                                   orientation='v',
+                                   x_label='Depth',
+                                   y_label='Temp C',
+                                   color='blue',
+                                   bgcolor='white',
+                                   border_visible=True,
+                                   border_width=1,
+                                   padding_bg_color='lightgray',
+                                   width=800,
+                                   height=380,
+                                   marker_size=2,
+                                   title='',
+                                   show_label=False), label='Temp'))
 
 view = View(VGroup(agrp, bgrp, fgrp, cgrp, pgrp), resizable=True,
-            width=900)
+            width=900,
+            title='WellTempLogger')
 
 if __name__ == '__main__':
     m = MainWindow()

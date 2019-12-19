@@ -59,6 +59,10 @@ class MeasurementDevice(Device):
     starttime = 0
     device_id = 'GPIB0::22::INSTR'
 
+    def init(self):
+        if not self.counter:
+            self.starttime = time.time()
+
     def reset(self):
         self.counter = 0
         self.starttime = time.time()
