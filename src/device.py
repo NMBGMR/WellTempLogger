@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ===============================================================================
-from traits.api import HasTraits, Float
+from traits.api import HasTraits, Float, Int
 import random
 from datetime import datetime
 import platform
@@ -58,6 +58,7 @@ class MeasurementDevice(Device):
     counter = 0
     starttime = 0
     device_id = 'GPIB0::22::INSTR'
+    npoints = Int(10)
 
     def init(self):
         if not self.counter:
@@ -80,8 +81,8 @@ class MeasurementDevice(Device):
         self._handle = rm.open_resource()
 
     def configure(self):
-        self._handle.write('')
-        self._handle.write('')
+        self._handle.write('CONF:FRES 1MOHM, 0.000001MOHM')
+        self._handle.write('SENSE:FRES:NPLC {}'.format(self.npoints))
 
     def get_measurement(self):
         self.counter += 1

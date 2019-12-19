@@ -1,0 +1,1 @@
+$HOME/miniconda3/envs/wtl/bin/python wtgui.py

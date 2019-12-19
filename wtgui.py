@@ -20,6 +20,7 @@ from numpy import array
 
 from chaco.chaco_plot_editor import ChacoPlotItem
 from numpy import hstack
+from pyface.message_dialog import warning
 from pyface.timer.do_later import do_after, do_later
 from traits.api import HasTraits, Button, Float, File, Bool, Str, Array, Int, Instance
 from traitsui.api import View, UItem, HGroup, VGroup, Item, Readonly, Tabbed
@@ -35,13 +36,13 @@ class MainWindow(HasTraits):
     reset_button = Button('Reset')
     last_measurement = Str
     output_path = File
+    well_name = Str
     post_measurement_delay = Float(0.05, auto_set=False, enter_set=True)
 
-    npoints = Int
     _scan_thread = None
 
     _alive = Bool
-    measurement_device = None
+    measurement_device = Instance(MeasurementDevice, ())
     signal_device = Instance(SignalDevice, ())
 
     xs = Array
@@ -58,7 +59,9 @@ class MainWindow(HasTraits):
         if os.path.isfile(p):
             with open(p, 'r') as rfile:
                 yobj = yaml.load(rfile)
-                for obj, ga in ((self, 'main'), (self.signal_device, 'signal_device')):
+                for obj, ga in ((self, 'main'),
+                                (self.signal_device, 'signal_device'),
+                                (self.measurement_device, 'measurement_device')):
                     g = yobj.get(ga)
                     if g:
                         for k, v in g.items():
@@ -69,7 +72,8 @@ class MainWindow(HasTraits):
             return {k: getattr(obj, k) for k in attrs}
 
         ctx = {'main': make_dump(self, ('post_measurement_delay',)),
-               'signal_device': make_dump(self.signal_device, ('period',))}
+               'signal_device': make_dump(self.signal_device, ('period',)),
+               'measurement_device': make_dump(self.measurement_device, ('npoints',))}
         return ctx
 
     def dump(self):
@@ -77,10 +81,15 @@ class MainWindow(HasTraits):
             yaml.dump(self._get_dump_obj(), wfile, default_flow_style=False)
 
     def _start_button_fired(self):
-        if self._initialize_output_file():
-            if self._initialize_devices():
-                self.measurement_device.init()
-                self._start_scan()
+        if not self._initialized:
+            if self._initialize_output_file():
+                if not self._initialize_devices():
+                    return
+            else:
+                return
+
+        self.measurement_device.init()
+        self._start_scan()
 
     def _stop_button_fired(self):
         self._alive = False
@@ -96,18 +105,27 @@ class MainWindow(HasTraits):
         if self.measurement_device:
             self.measurement_device.reset()
 
+        self._initialized = False
+
     def _start_scan(self):
         self._alive = True
         do_later(self._scan)
 
     def _initialize_output_file(self):
+        if not self.well_name:
+            warning(None, 'Please set a Well Name')
+            return
 
-        if not self.output_path:
-            self.output_path = os.path.join('data', '{}.csv'.format(datetime.now().isoformat()))
+        self.output_path = os.path.join('data', '{}.{}.csv'.format(self.well_name, datetime.now().isoformat()))
 
         root = os.path.dirname(self.output_path)
         if not os.path.isdir(root):
             os.mkdir(root)
+
+        with open(self.output_path, 'w') as wfile:
+            line = ['Counter', 'Time', 'Rate', 'TimeStamp', 'Raw', 'Temp']
+            wfile.write('{}\n'.format(','.join(line)))
+
         return True
 
     def _initialize_devices(self):
@@ -162,7 +180,7 @@ class MainWindow(HasTraits):
     def _write_measurement(self, row):
         with open(self.output_path, 'a') as wfile:
             line = ','.join([str(r) for r in row])
-            wfile.write('\n'.format(line))
+            wfile.write('{}\n'.format(line))
 
 
 agrp = HGroup(UItem('start_button', enabled_when='not _alive'),
@@ -171,8 +189,10 @@ agrp = HGroup(UItem('start_button', enabled_when='not _alive'),
               )
 
 bgrp = HGroup(Readonly('last_measurement', show_label=False), label='Last Measurement', show_border=True)
-fgrp = HGroup(Readonly('output_path', show_label=False), label='Output File', show_border=True)
-cgrp = HGroup(Item('post_measurement_delay'), Item('object.signal_device.period'))
+fgrp = HGroup(Item('well_name'), Readonly('output_path', show_label=False), label='Output File', show_border=True)
+cgrp = HGroup(Item('post_measurement_delay'),
+              Item('object.measurement_device.npoints'),
+              Item('object.signal_device.period'))
 pgrp = Tabbed(VGroup(ChacoPlotItem('xs', 'ys',
                                    resizable=True,
                                    orientation='v',
