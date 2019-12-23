@@ -27,8 +27,10 @@ from traitsui.api import View, UItem, HGroup, VGroup, Item, Readonly, Tabbed, sp
 
 from src.device import SignalDevice, MeasurementDevice
 from src.calibrator import Calibrator
+
 DEBUG = True
 PROJECT_ROOT = os.path.join(os.path.expanduser('~'), 'WellTempLogger')
+
 
 class MainWindow(HasTraits):
     start_button = Button('Start')
@@ -80,10 +82,16 @@ class MainWindow(HasTraits):
     def dump(self):
         with open(self.persistence_path, 'w') as wfile:
             yaml.dump(self._get_dump_obj(), wfile, default_flow_style=False)
+
     def _calibrate_button_fired(self):
-        cb = Calibrator()
-        cb.edit_traits()
-        
+        cb = Calibrator(root=PROJECT_ROOT,
+                        measurement_device=self.measurement_device)
+
+        if cb.open():
+            cb.edit_traits(kind='live')
+        else:
+            warning(None, 'Failed to open calibration devices')
+
     def _start_button_fired(self):
         if not self._initialized:
             if self._initialize_output_file():
@@ -120,8 +128,8 @@ class MainWindow(HasTraits):
             warning(None, 'Please set a Well Name')
             return
 
-#        self.output_path = os.path.join('data', '{}.{}.csv'.format(self.well_name, datetime.now().isoformat()))
-        uid = datetime.now().isoformat().replace(':','_')
+        #        self.output_path = os.path.join('data', '{}.{}.csv'.format(self.well_name, datetime.now().isoformat()))
+        uid = datetime.now().isoformat().replace(':', '_')
         self.output_path = os.path.join(PROJECT_ROOT, 'data', '{}.{}.csv'.format(self.well_name, uid))
 
         root = os.path.dirname(self.output_path)
@@ -196,7 +204,8 @@ agrp = HGroup(UItem('start_button', enabled_when='not _alive'),
               )
 
 bgrp = HGroup(Readonly('last_measurement', show_label=False), label='Last Measurement', show_border=True)
-fgrp = HGroup(Item('well_name', width=-200), spring, Readonly('output_path', show_label=False), label='Output File', show_border=True)
+fgrp = HGroup(Item('well_name', width=-200), spring, Readonly('output_path', show_label=False), label='Output File',
+              show_border=True)
 cgrp = HGroup(Item('post_measurement_delay'),
               Item('object.measurement_device.npoints'),
               Item('object.signal_device.period'))

@@ -54,7 +54,24 @@ class SignalDevice(Device):
                 time.sleep(self.period)
 
 
-class MeasurementDevice(Device):
+class VisaDevice(Device):
+    def open(self):
+        rm = pyvisa.ResourceManager()
+        res = rm.list_resources()
+        if self.device_id not in res:
+            print('DeviceID={}'.format(self.device_id))
+            print('Available Resources={}'.format(res))
+        else:
+            inst = rm.open_resource(self.device_id)
+            self._handle = inst
+            self._configure()
+            return inst
+
+    def _configure(self):
+        pass
+
+
+class MeasurementDevice(VisaDevice):
     counter = 0
     starttime = 0
     device_id = 'GPIB0::22::INSTR'
@@ -80,7 +97,7 @@ class MeasurementDevice(Device):
 
         self._handle = rm.open_resource()
 
-    def configure(self):
+    def _configure(self):
         self._handle.write('CONF:FRES 1MOHM, 0.000001MOHM')
         self._handle.write('SENSE:FRES:NPLC {}'.format(self.npoints))
 
@@ -104,4 +121,14 @@ class MeasurementDevice(Device):
         except BaseException as e:
             print('failed reading from device, Error:{}'.format(e))
             return random.random()
+
+
+class CalibrationDevice(VisaDevice):
+    device_id = 'GPIB::23:INSTR'
+
+    def _configure(self):
+        pass
+
+    def get_measurement(self):
+        return random.random()
 # ============= EOF =============================================
