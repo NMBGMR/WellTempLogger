@@ -14,6 +14,7 @@
 # limitations under the License.
 # ===============================================================================
 from traits.api import HasTraits, Float, Int
+from pyface.api import warning
 import random
 from datetime import datetime
 import platform
@@ -43,7 +44,7 @@ class SignalDevice(Device):
             self._handle = serial.Serial(self.device_id)
             return True
         except serial.SerialException:
-            pass
+            warning(None, 'Triggering device {} not available. Please check connections'.format(self.device_id))
 
     def waitfor(self):
         if self._handle:
@@ -61,11 +62,12 @@ class VisaDevice(Device):
         if self.device_id not in res:
             print('DeviceID={}'.format(self.device_id))
             print('Available Resources={}'.format(res))
+            warning(None, 'Device: {} not available. Please check connections'.format(self.device_id))
         else:
             inst = rm.open_resource(self.device_id)
             self._handle = inst
             self._configure()
-            return inst
+            return True
 
     def _configure(self):
         pass
@@ -84,18 +86,6 @@ class MeasurementDevice(VisaDevice):
     def reset(self):
         self.counter = 0
         self.starttime = time.time()
-
-    def open(self):
-        rm = pyvisa.ResourceManager()
-        res = rm.list_resources()
-        if self.device_id not in res:
-            print('DeviceID={}'.format(self.device_id))
-            print('Available Resources={}'.format(res))
-        else:
-            inst = rm.open_resource(self.device_id)
-            return inst
-
-        self._handle = rm.open_resource()
 
     def _configure(self):
         self._handle.write('CONF:FRES 1MOHM, 0.000001MOHM')

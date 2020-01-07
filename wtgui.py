@@ -20,7 +20,7 @@ from numpy import array
 
 from chaco.chaco_plot_editor import ChacoPlotItem
 from numpy import hstack
-from pyface.message_dialog import warning
+from pyface.message_dialog import warning, information
 from pyface.timer.do_later import do_after, do_later
 from traits.api import HasTraits, Button, Float, File, Bool, Str, Array, Int, Instance
 from traitsui.api import View, UItem, HGroup, VGroup, Item, Readonly, Tabbed, spring
@@ -28,11 +28,12 @@ from traitsui.api import View, UItem, HGroup, VGroup, Item, Readonly, Tabbed, sp
 from src.device import SignalDevice, MeasurementDevice
 from src.calibrator import Calibrator
 
-DEBUG = True
+DEBUG = os.getenv('DEBUG') in ('True', 'true')
 PROJECT_ROOT = os.path.join(os.path.expanduser('~'), 'WellTempLogger')
 
 
 class MainWindow(HasTraits):
+    test_button = Button('Test')
     start_button = Button('Start')
     stop_button = Button('Stop')
     reset_button = Button('Reset')
@@ -102,7 +103,10 @@ class MainWindow(HasTraits):
 
         self.measurement_device.init()
         self._start_scan()
-
+        
+    def _test_button_fired(self):
+        self._test_connections()
+        
     def _stop_button_fired(self):
         self._alive = False
 
@@ -154,7 +158,17 @@ class MainWindow(HasTraits):
                 return True
         else:
             return True
-
+        
+    def _test_connections(self):
+        md = MeasurementDevice()
+        mb = md.open()
+        
+        sd = SignalDevice()
+        sb = sd.open()
+        
+        if mb and sb:
+            information(None, 'Connection Test Successful. Devices Connected')
+            
     def _scan(self):
 
         self._iteration()
@@ -200,7 +214,8 @@ class MainWindow(HasTraits):
 agrp = HGroup(UItem('start_button', enabled_when='not _alive'),
               UItem('stop_button', enabled_when='_alive'),
               UItem('reset_button', enabled_when='not _alive'),
-              UItem('calibrate_button', enabled_when='not _alive')
+              UItem('calibrate_button', enabled_when='not _alive'),
+              UItem('test_button', enabled_when='not _alive')
               )
 
 bgrp = HGroup(Readonly('last_measurement', show_label=False), label='Last Measurement', show_border=True)
