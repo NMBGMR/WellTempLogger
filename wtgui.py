@@ -218,12 +218,15 @@ agrp = HGroup(UItem('start_button', enabled_when='not _alive'),
               UItem('test_button', enabled_when='not _alive')
               )
 
-bgrp = HGroup(Readonly('last_measurement', show_label=False), label='Last Measurement', show_border=True)
+bgrp = HGroup(Readonly('last_measurement', show_label=False), 
+              Readonly('object.measurement_device.rate', label='Rate (m/s)'),
+              label='Last Measurement', show_border=True)
 fgrp = HGroup(Item('well_name', width=-200), spring, Readonly('output_path', show_label=False), label='Output File',
               show_border=True)
-cgrp = HGroup(Item('post_measurement_delay'),
+cgrp = HGroup(Item('post_measurement_delay', tooltip='Time (s) to wait after a triggered measurement before trying to get the next measurement. Increase this value if descending at a slow rate'),
               Item('object.measurement_device.npoints'),
-              Item('object.signal_device.period'))
+              Item('object.signal_device.period'),
+              Item('object.measurement_device.use_air_calibration'))
 pgrp = Tabbed(VGroup(ChacoPlotItem('xs', 'ys',
                                    resizable=True,
                                    orientation='v',

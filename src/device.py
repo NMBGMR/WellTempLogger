@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ===============================================================================
-from traits.api import HasTraits, Float, Int
+from traits.api import HasTraits, Float, Int, Bool
 from pyface.api import warning
 import random
 from datetime import datetime
@@ -21,6 +21,7 @@ import platform
 import time
 import pyvisa
 import serial
+import math
 
 
 class Device(HasTraits):
@@ -78,7 +79,8 @@ class MeasurementDevice(VisaDevice):
     starttime = 0
     device_id = 'GPIB0::22::INSTR'
     npoints = Int(10)
-
+    use_air_calibration = Bool(True)
+    rate = Float
     def init(self):
         if not self.counter:
             self.starttime = time.time()
@@ -96,6 +98,7 @@ class MeasurementDevice(VisaDevice):
 
         t = time.time() - self.starttime
         r = self.counter / t
+        self.rate = r
         value = self._read()
         row = [self.counter, t, r, datetime.now().isoformat(), value, self._convert_to_temp(value)]
 
@@ -103,6 +106,18 @@ class MeasurementDevice(VisaDevice):
 
     # private
     def _convert_to_temp(self, v):
+        if self.use_air_calibration:
+            a = -39.74119491
+            c = 573.6081692
+            v = a*math.log(v)+c
+        else:
+            a = 1233.19043
+            b = -192.56687
+            c = 10.78172
+            d = -0.24088
+            x=math.log(v)
+            v = a+b*x+c*x**2+d*x**3
+            
         return v
 
     def _read(self):
