@@ -5,7 +5,7 @@ enable==4.8.0
 fonttools==4.2.2
 numpy==1.17.3
 pyface==6.1.2
-Pygments==2.5.2
+Pygments==2.7.4
 PyQt5==5.12.3
 PyQt5-sip==4.19.18
 PyQtWebEngine==5.12.1
