@@ -3,7 +3,7 @@ chaco==4.8.0
 Cython==0.29.14
 enable==4.8.0
 fonttools==4.2.2
-numpy==1.17.3
+numpy==1.22.0
 pyface==6.1.2
 Pygments==2.5.2
 PyQt5==5.12.3
